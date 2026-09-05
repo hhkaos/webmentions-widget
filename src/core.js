@@ -147,6 +147,84 @@ export function formatMentionDate(value, locale) {
   }).format(date);
 }
 
+const RELATIVE_UNITS = [
+  ['second', 1000],
+  ['minute', 60 * 1000],
+  ['hour', 60 * 60 * 1000],
+  ['day', 24 * 60 * 60 * 1000],
+];
+
+/** Default: fall back to an absolute date once a snapshot is over a day old. */
+export const DEFAULT_RELATIVE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * "3 hours ago" for a recent timestamp, `null` once it is old enough that an
+ * absolute date reads better. `null` is the signal to the caller to format the
+ * date instead — "27 days ago" is worse than "5 Sept".
+ */
+export function formatRelativeTime(value, locale, {
+  now = Date.now(),
+  thresholdMs = DEFAULT_RELATIVE_THRESHOLD_MS,
+} = {}) {
+  if (!value || typeof Intl?.RelativeTimeFormat !== 'function') {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const elapsed = now - date.getTime();
+
+  // A clock skew that puts the snapshot slightly in the future should read as
+  // "now", not as a negative age.
+  if (elapsed > thresholdMs) {
+    return null;
+  }
+
+  const formatter = new Intl.RelativeTimeFormat(locale, {numeric: 'auto'});
+  const [unit, unitMs] = [...RELATIVE_UNITS]
+    .reverse()
+    .find(([, ms]) => Math.abs(elapsed) >= ms) || RELATIVE_UNITS[0];
+  const amount = Math.round(elapsed / unitMs);
+
+  return formatter.format(-amount, unit);
+}
+
+/** The exact moment, for a tooltip or an expanded view. */
+export function formatDateTime(value, locale) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+/**
+ * What to show for a snapshot timestamp: a relative phrase while it is fresh,
+ * an absolute date once it is not, plus the exact moment for the tooltip.
+ */
+export function describeTimestamp(value, locale, options = {}) {
+  const relative = formatRelativeTime(value, locale, options);
+
+  return {
+    label: relative || formatMentionDate(value, locale),
+    exact: formatDateTime(value, locale),
+    isRelative: Boolean(relative),
+  };
+}
+
 function normalizeUrl(value, base) {
   if (!value) {
     return null;

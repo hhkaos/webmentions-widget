@@ -150,7 +150,12 @@ widget dates what it is showing:
 
 It renders only when the mentions came from a snapshot and there is at least one
 to qualify — on a live fetch the data is current and dating it would mislead.
-`renderUpdated={(iso, formatted) => …}` takes over the wording entirely.
+
+While the snapshot is recent the timestamp reads as "3 hours ago"; once it is
+over a day old it becomes an absolute date. Either way the exact moment is one
+hover or one click away, and the `<time datetime>` attribute always carries the
+machine-readable value. `renderUpdated={(iso, label, exact) => …}` takes over
+the wording entirely.
 
 The widget owns this because it is the only layer that knows which source the
 mentions came from; the host owns the copy.

@@ -18,11 +18,13 @@
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 
-import {getSnapshotMentions, mergeSnapshot} from '../src/core.js';
+import {getSnapshotMentions, mergeSnapshot, parseWebmentionJson} from '../src/core.js';
 
 const DEFAULT_API = 'https://webmention.io/api/mentions.jf2';
 const PER_PAGE = 100;
 const PAGE_DELAY_MS = 500;
+const RETRIES = 4;
+const RETRY_DELAY_MS = 2000;
 
 function parseArgs(argv) {
   const args = {};
@@ -48,6 +50,42 @@ async function readExisting(path) {
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * webmention.io returns intermittent 502s. A daily job that gives up on the
+ * first one silently skips a whole day, so retry with backoff before deciding
+ * the API is really unavailable.
+ */
+async function fetchPage(url) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
+    if (attempt > 0) {
+      await wait(RETRY_DELAY_MS * 2 ** (attempt - 1));
+    }
+
+    try {
+      const response = await fetch(url);
+
+      if (response.ok) {
+        return parseWebmentionJson(await response.text());
+      }
+
+      lastError = new Error(`webmention.io responded with ${response.status}`);
+
+      // A 4xx will not fix itself; only server errors are worth retrying.
+      if (response.status < 500 && response.status !== 429) {
+        break;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+
+    console.error(`  attempt ${attempt + 1}/${RETRIES + 1} failed: ${lastError.message}`);
+  }
+
+  throw lastError;
+}
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -84,16 +122,18 @@ async function main() {
       params.set('since_id', String(sinceId));
     }
 
-    const response = await fetch(`${apiUrl}?${params}`);
+    let payload;
 
-    if (!response.ok) {
+    try {
+      payload = await fetchPage(`${apiUrl}?${params}`);
+    } catch (error) {
       // Leave the existing snapshot alone rather than replacing good data with
       // a partial fetch; the next scheduled run picks up where this stopped.
-      console.error(`webmention.io responded with ${response.status}; keeping the current snapshot.`);
+      console.error(`${error.message}; keeping the current snapshot.`);
       process.exit(1);
     }
 
-    const batch = (await response.json())?.children || [];
+    const batch = payload?.children || [];
     collected.push(...batch);
 
     if (batch.length < PER_PAGE) {

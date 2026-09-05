@@ -7,6 +7,7 @@
 
 import {
   FACEPILE_PROPERTIES,
+  describeTimestamp,
   fetchWebmentions,
   formatMentionDate,
   getMentionContent,
@@ -305,9 +306,37 @@ export function renderGroups(groups, {
       appendLabel(updatedElement, labels.updated, doc);
       updatedElement.appendChild(doc.createTextNode(' '));
 
+      // Relative while fresh, absolute once it is not. The exact moment stays
+      // reachable by hover and by click — hover does not exist on touch.
+      const {label, exact, isRelative} = describeTimestamp(updatedAt, locale);
       const time = doc.createElement('time');
       time.dateTime = updatedAt;
-      time.textContent = formatMentionDate(updatedAt, locale);
+      time.textContent = label;
+
+      if (exact) {
+        time.title = exact;
+      }
+
+      if (isRelative && exact) {
+        time.setAttribute('role', 'button');
+        time.setAttribute('tabindex', '0');
+        time.style.cursor = 'pointer';
+
+        let expanded = false;
+        const toggle = () => {
+          expanded = !expanded;
+          time.textContent = expanded ? exact : label;
+        };
+
+        time.addEventListener('click', toggle);
+        time.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggle();
+          }
+        });
+      }
+
       updatedElement.appendChild(time);
     }
 

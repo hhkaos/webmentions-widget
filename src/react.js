@@ -5,9 +5,10 @@
  * buildless — consumers import the source directly.
  */
 
-import {createElement as h, useEffect, useMemo, useState} from 'react';
+import {createElement as h, useCallback, useEffect, useMemo, useState} from 'react';
 import {
   FACEPILE_PROPERTIES,
+  describeTimestamp,
   fetchWebmentions,
   filterMentionsByTargets,
   formatMentionDate,
@@ -227,6 +228,51 @@ function Thread({mention, classNames, labels, locale, maxLength}) {
   );
 }
 
+/**
+ * "Updated 3 hours ago" while the snapshot is fresh, an absolute date once it
+ * is not. The exact moment is always reachable: as a tooltip on hover, and by
+ * clicking — hover does not exist on touch.
+ */
+function UpdatedLine({className, generatedAt, locale, label, render}) {
+  const [expanded, setExpanded] = useState(false);
+  const toggle = useCallback(() => setExpanded((previous) => !previous), []);
+  const {label: relative, exact, isRelative} = useMemo(
+    () => describeTimestamp(generatedAt, locale),
+    [generatedAt, locale],
+  );
+
+  if (render) {
+    return h('p', {className}, render(generatedAt, relative, exact));
+  }
+
+  return h(
+    'p',
+    {className},
+    renderLabel(label, 'updated'),
+    ' ',
+    h(
+      'time',
+      {
+        dateTime: generatedAt,
+        title: exact,
+        onClick: isRelative ? toggle : undefined,
+        role: isRelative ? 'button' : undefined,
+        tabIndex: isRelative ? 0 : undefined,
+        onKeyDown: isRelative
+          ? (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              toggle();
+            }
+          }
+          : undefined,
+        style: isRelative ? {cursor: 'pointer'} : undefined,
+      },
+      expanded ? exact : relative,
+    ),
+  );
+}
+
 const REACT_CLASS_NAMES = {
   root: 'webmentions',
   title: 'webmentions-title',
@@ -309,21 +355,14 @@ export function Webmentions({
     // Only when rendering from a snapshot: on a live fetch the mentions are
     // current and dating them would be misleading.
     source === 'snapshot' && generatedAt && (labels.updated || renderUpdated)
-      ? h(
-        'p',
-        {key: 'updated', className: classNames.updated},
-        renderUpdated
-          ? renderUpdated(generatedAt, formatMentionDate(generatedAt, locale))
-          : [
-            renderLabel(labels.updated, 'updated'),
-            ' ',
-            h(
-              'time',
-              {key: 'updated-time', dateTime: generatedAt},
-              formatMentionDate(generatedAt, locale),
-            ),
-          ],
-      )
+      ? h(UpdatedLine, {
+        key: 'updated',
+        className: classNames.updated,
+        generatedAt,
+        locale,
+        label: labels.updated,
+        render: renderUpdated,
+      })
       : null,
   ];
 

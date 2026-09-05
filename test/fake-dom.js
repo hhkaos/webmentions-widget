@@ -11,6 +11,8 @@ class FakeNode {
     this.attributes = {};
     this.className = '';
     this.hidden = false;
+    this.style = {};
+    this.listeners = {};
     this._text = null;
   }
 
@@ -41,6 +43,14 @@ class FakeNode {
 
   setAttribute(name, value) {
     this.attributes[name] = String(value);
+  }
+
+  addEventListener(type, handler) {
+    (this.listeners[type] ||= []).push(handler);
+  }
+
+  dispatch(type, event = {}) {
+    (this.listeners[type] || []).forEach((handler) => handler(event));
   }
 
   getAttribute(name) {

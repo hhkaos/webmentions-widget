@@ -138,3 +138,73 @@ describe('renderWebmentions', () => {
     assert.equal(list.children.length, 1, 'existing markup survives an outage');
   });
 });
+
+describe('renderGroups freshness line', () => {
+  const recent = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+
+  function setupWithUpdated() {
+    const parts = setup();
+    const updated = new FakeNode('p', parts.doc);
+    parts.container.appendChild(updated);
+
+    return {...parts, updated};
+  }
+
+  it('shows a relative time and reveals the exact moment on click', () => {
+    const {doc, container, facepile, list, updated} = setupWithUpdated();
+
+    renderGroups(groupWebmentions(feed), {
+      container,
+      facepile,
+      list,
+      updated,
+      updatedAt: recent,
+      locale: 'en',
+      labels: {updated: 'Updated'},
+      document: doc,
+    });
+
+    const time = updated.children.at(-1);
+
+    assert.match(time.textContent, /hours ago/);
+    assert.equal(time.getAttribute('role'), 'button');
+    assert.ok(time.attributes.title || time.title, 'exact moment is available on hover');
+
+    const relative = time.textContent;
+    time.dispatch('click');
+    assert.notEqual(time.textContent, relative, 'click reveals the exact moment');
+
+    time.dispatch('click');
+    assert.equal(time.textContent, relative, 'clicking again goes back');
+  });
+
+  it('uses an absolute date once the snapshot is old, with no toggle', () => {
+    const {doc, container, facepile, list, updated} = setupWithUpdated();
+
+    renderGroups(groupWebmentions(feed), {
+      container,
+      facepile,
+      list,
+      updated,
+      updatedAt: '2026-01-15T09:00:00Z',
+      locale: 'en',
+      labels: {updated: 'Updated'},
+      document: doc,
+    });
+
+    const time = updated.children.at(-1);
+
+    assert.match(time.textContent, /Jan 15, 2026/);
+    assert.equal(time.getAttribute('role'), null);
+  });
+
+  it('stays hidden without a label or a timestamp', () => {
+    const {doc, container, facepile, list, updated} = setupWithUpdated();
+
+    renderGroups(groupWebmentions(feed), {
+      container, facepile, list, updated, updatedAt: recent, document: doc,
+    });
+
+    assert.equal(updated.hidden, true);
+  });
+});

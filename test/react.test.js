@@ -91,8 +91,10 @@ describe('<Webmentions> with a build-time snapshot', () => {
 });
 
 describe('snapshot freshness line', () => {
+  // Deliberately old: a fixture inside the relative-time window would make the
+  // assertion depend on when the suite runs.
   const snapshot = {
-    generatedAt: '2026-09-05T06:00:00Z',
+    generatedAt: '2026-01-15T06:00:00Z',
     mentions: [
       {'wm-id': 7, 'wm-target': 'https://example.com/post', 'wm-property': 'like-of', 'wm-source': 'https://s/7', author: {name: 'Eve'}},
     ],
@@ -109,7 +111,8 @@ describe('snapshot freshness line', () => {
 
     // React's static renderer emits `dateTime`; HTML attribute names are
     // case-insensitive, so the browser reads it as `datetime` either way.
-    assert.match(html, /class="webmentions-updated">Updated <time dateTime="2026-09-05T06:00:00Z">Sep 5, 2026<\/time>/i);
+    assert.match(html, /class="webmentions-updated">Updated <time dateTime="2026-01-15T06:00:00Z"[^>]*>Jan 15, 2026<\/time>/i);
+    assert.doesNotMatch(html, /role="button"/, 'an old snapshot needs no toggle');
   });
 
   it('stays quiet without a label, and on a live fetch', () => {
@@ -127,6 +130,19 @@ describe('snapshot freshness line', () => {
       })),
       /webmentions-updated/,
     );
+  });
+
+  it('shows a recent snapshot as relative time, clickable for the exact moment', () => {
+    const html = renderToStaticMarkup(createElement(Webmentions, {
+      targets,
+      snapshot: {...snapshot, generatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()},
+      locale: 'en',
+      labels: {updated: 'Updated'},
+    }));
+
+    assert.match(html, /hours ago<\/time>/);
+    assert.match(html, /role="button"/);
+    assert.match(html, /title="[^"]+"/, 'exact moment available on hover');
   });
 
   it('renders bilingual labels and honours renderUpdated', () => {

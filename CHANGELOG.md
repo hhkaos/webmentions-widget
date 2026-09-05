@@ -2,6 +2,19 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.5.0
+
+### Added
+
+- The freshness line now reads "Updated 3 hours ago" while a snapshot is recent
+  and falls back to an absolute date once it is older than a day — "27 days ago"
+  reads worse than "5 Sept". The exact moment is always reachable: as a tooltip
+  on hover, and by clicking or pressing Enter on the timestamp, because hover
+  does not exist on touch.
+- `formatRelativeTime`, `formatDateTime` and `describeTimestamp` in core.
+- `webmentions-snapshot` retries with backoff on 5xx. Without it a single
+  transient 502 silently skipped a whole day's refresh.
+
 ## 0.4.0
 
 ### Fixed
