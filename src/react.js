@@ -197,6 +197,9 @@ export function Webmentions({
   locale,
   maxLength,
   classNames: classNameOverrides = {},
+  // Optional wrapper inside the <aside>, for hosts whose layout CSS keys off a
+  // width-constraining element (Docusaurus's `.container`, for example).
+  innerClassName = null,
   renderEmpty = null,
   renderError = null,
   ...options
@@ -216,14 +219,12 @@ export function Webmentions({
     return renderEmpty ? renderEmpty() : null;
   }
 
-  return h(
-    'aside',
-    {className: classNames.root, 'aria-labelledby': `${classNames.title}-heading`},
-    h('h2', {id: `${classNames.title}-heading`, className: classNames.title}, title),
+  const children = [
+    h('h2', {key: 'title', id: `${classNames.title}-heading`, className: classNames.title}, title),
     groups.interactions.length
       ? h(
         'ol',
-        {className: classNames.facepile, 'aria-label': 'Reactions'},
+        {key: 'facepile', className: classNames.facepile, 'aria-label': 'Reactions'},
         groups.interactions.map((mention) => h(Face, {
           key: mention['wm-id'] || mention.url || mention['wm-source'],
           mention,
@@ -234,7 +235,7 @@ export function Webmentions({
     groups.threads.length
       ? h(
         'ol',
-        {className: classNames.threadList},
+        {key: 'threads', className: classNames.threadList},
         groups.threads.map((mention) => h(Thread, {
           key: mention['wm-id'] || mention.url || mention['wm-source'],
           mention,
@@ -245,6 +246,12 @@ export function Webmentions({
         })),
       )
       : null,
+  ];
+
+  return h(
+    'aside',
+    {className: classNames.root, 'aria-labelledby': `${classNames.title}-heading`},
+    innerClassName ? h('div', {className: innerClassName}, children) : children,
   );
 }
 

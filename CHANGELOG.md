@@ -2,6 +2,17 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.1.1
+
+### Added
+
+- `innerClassName` on `<Webmentions>` — renders a wrapper element inside the
+  `<aside>`, for hosts whose layout CSS keys off a width-constraining element
+  (Docusaurus's `.container`). Without it, `hhkaos.github.io` would have lost its
+  820px cap on migrating.
+- React render tests, using `initialMentions` to seed state synchronously so the
+  component's real markup can be asserted from a server render.
+
 ## 0.1.0
 
 Initial release. Extracts the three near-duplicate webmention.io widgets

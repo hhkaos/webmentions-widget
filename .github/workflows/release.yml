@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+          cache: npm
 
       # Trusted Publishing needs npm >= 11.5.1; the bundled npm may be older.
       - run: npm install -g npm@latest
@@ -37,6 +38,8 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match package.json version $pkg" >&2
             exit 1
           fi
+
+      - run: npm ci
 
       - run: node --test test/*.test.js
 
