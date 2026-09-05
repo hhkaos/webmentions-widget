@@ -2,6 +2,17 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.5.4
+
+### Changed
+
+- `webmentions-snapshot` reports how many mentions it fetched. `domain=` filters
+  by the target's host, which is not always the host you expect, and without
+  this the only signal was an unchanged count.
+- `--full` now replaces the snapshot rather than merging into it, so entries
+  collected under a domain you no longer query stop lingering. An empty result
+  is still treated as suspect and leaves the existing file alone.
+
 ## 0.5.3
 
 ### Fixed

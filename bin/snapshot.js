@@ -165,12 +165,25 @@ async function main() {
 
   const before = getSnapshotMentions(existing).length;
 
-  if (!collected.length && existing) {
-    console.log(`No new mentions since #${sinceId}. Snapshot unchanged (${before}).`);
+  console.log(`Fetched ${collected.length} mention(s) for ${domain}${sinceId ? ` since #${sinceId}` : ''}.`);
+
+  if (!collected.length) {
+    if (args.full) {
+      // An authoritative refetch that came back empty is far more likely to be
+      // a wrong --domain than a genuinely empty account, so keep what we have.
+      console.log('Nothing returned for a full refresh; keeping the current snapshot.');
+      return;
+    }
+
+    console.log(`Snapshot unchanged (${before}).`);
     return;
   }
 
-  const snapshot = mergeSnapshot(existing, collected);
+  // A full refetch is authoritative: replace rather than merge, so mentions
+  // collected under a domain we no longer query do not linger forever.
+  const snapshot = args.full
+    ? mergeSnapshot(null, collected)
+    : mergeSnapshot(existing, collected);
 
   if (snapshot.count === before) {
     console.log(`Snapshot unchanged (${before} mentions).`);
