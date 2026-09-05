@@ -112,7 +112,7 @@ describe('renderWebmentions', () => {
   const response = (status, body) => ({
     ok: status < 400,
     status,
-    json: async () => body,
+    text: async () => JSON.stringify(body),
   });
 
   it('leaves existing markup alone and reports the error when the API is down', async () => {

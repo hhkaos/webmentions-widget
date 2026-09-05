@@ -2,6 +2,25 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.4.0
+
+### Fixed
+
+- webmention.io sometimes serves **invalid JSON**: its serializer copies source
+  content into string literals without escaping it, so a mention whose content
+  contains a backslash (a shell example ending in `\`) or a raw newline yields a
+  payload `JSON.parse` rejects outright. Such a mention was invisible — not
+  because the API was down, but because its response could not be read at all.
+  Responses are now parsed with `parseWebmentionJson`, which repairs only what
+  will not parse and leaves valid payloads byte-identical.
+
+  Found on `links.rauljimenez.info`, where the single mention had never been
+  displayable for this reason, independently of the ongoing 502s.
+
+### Added
+
+- `repairJson` and `parseWebmentionJson` exported from core.
+
 ## 0.3.0
 
 ### Added

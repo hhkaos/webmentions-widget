@@ -461,6 +461,86 @@ export function mergeSnapshot(existing, incoming) {
   };
 }
 
+const VALID_JSON_ESCAPES = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+/**
+ * Repair the malformed JSON webmention.io sometimes serves.
+ *
+ * Its serializer copies source-page content into string literals without
+ * escaping it, so a mention whose content contains a backslash (a shell example
+ * ending in `\`, say) or a raw newline produces a payload that `JSON.parse`
+ * rejects outright. The mention is then invisible — not because the API was
+ * down, but because its response could not be read at all.
+ *
+ * Walks the text tracking whether it is inside a string literal, escaping only
+ * the offending characters and leaving valid escapes untouched.
+ */
+export function repairJson(text) {
+  let out = '';
+  let inString = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (!inString) {
+      if (char === '"') {
+        inString = true;
+      }
+
+      out += char;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = false;
+      out += char;
+      continue;
+    }
+
+    if (char === '\\') {
+      const next = text[index + 1];
+
+      if (VALID_JSON_ESCAPES.has(next)) {
+        out += char + next;
+        index += 1;
+      } else {
+        out += '\\\\';
+      }
+
+      continue;
+    }
+
+    const code = char.charCodeAt(0);
+
+    if (code < 0x20) {
+      if (code === 0x0a) {
+        out += '\\n';
+      } else if (code === 0x0d) {
+        out += '\\r';
+      } else if (code === 0x09) {
+        out += '\\t';
+      } else {
+        out += `\\u${code.toString(16).padStart(4, '0')}`;
+      }
+
+      continue;
+    }
+
+    out += char;
+  }
+
+  return out;
+}
+
+/** Parse a webmention.io response, repairing it only if it will not parse. */
+export function parseWebmentionJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return JSON.parse(repairJson(text));
+  }
+}
+
 export class WebmentionFetchError extends Error {
   constructor(message, {status, attempts, cause} = {}) {
     super(message, {cause});
@@ -612,7 +692,7 @@ export async function fetchWebmentions({
           continue;
         }
 
-        const data = await response.json();
+        const data = parseWebmentionJson(await response.text());
 
         return endpoint.json
           ? normalizeJsonFeed(data)

@@ -15,13 +15,15 @@ import {
   mergeSnapshot,
   normalizeJsonFeed,
   normalizeProperty,
+  parseWebmentionJson,
+  repairJson,
   stripMojibake,
 } from '../src/core.js';
 
 const response = (status, body) => ({
   ok: status >= 200 && status < 300,
   status,
-  json: async () => body,
+  text: async () => JSON.stringify(body),
 });
 
 describe('getCanonicalTargets', () => {
@@ -427,5 +429,36 @@ describe('snapshot helpers', () => {
 
     assert.equal(merged.count, 1);
     assert.equal(merged.lastId, 9);
+  });
+});
+
+describe('malformed payload repair', () => {
+  it('parses a payload with an unescaped backslash in content', () => {
+    const raw = '{"children":[{"content":{"text":"curl foo \\ bar"}}]}';
+
+    assert.throws(() => JSON.parse(raw), SyntaxError, 'precondition: raw is invalid');
+    assert.equal(parseWebmentionJson(raw).children[0].content.text, 'curl foo \\ bar');
+  });
+
+  it('parses a payload with a raw newline inside a string', () => {
+    const raw = '{"children":[{"content":{"text":"line one\nline two"}}]}';
+
+    assert.throws(() => JSON.parse(raw), SyntaxError);
+    assert.equal(parseWebmentionJson(raw).children[0].content.text, 'line one\nline two');
+  });
+
+  it('leaves valid escapes and valid payloads untouched', () => {
+    const valid = '{"children":[{"content":{"text":"quote \\" tab \\t unicode \\u00e9"}}]}';
+
+    assert.equal(repairJson(valid), valid);
+    assert.equal(parseWebmentionJson(valid).children[0].content.text, 'quote " tab \t unicode é');
+  });
+
+  it('does not mangle backslashes outside string literals', () => {
+    assert.equal(repairJson('{"a": 1}'), '{"a": 1}');
+  });
+
+  it('still throws when the payload is not JSON at all', () => {
+    assert.throws(() => parseWebmentionJson('<html>502 Bad Gateway</html>'), SyntaxError);
   });
 });

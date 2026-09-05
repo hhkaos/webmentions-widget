@@ -210,6 +210,10 @@ assigns remote HTML.
   folds them together, so only ever branch on `mention-of`.
 - Bridgy mangles emoji into runs of `?` and `U+FFFD` when extracting plain text.
   `stripMojibake` removes the debris — the emoji is not recoverable.
+- Responses are sometimes **invalid JSON**: source content is copied into string
+  literals unescaped, so a backslash or a raw newline in a mention's content
+  makes the whole payload unparseable. `parseWebmentionJson` repairs those two
+  cases; valid payloads pass through untouched.
 
 ## Development
 
