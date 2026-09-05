@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {groupWebmentions} from '../src/core.js';
+import {getMentionAuthor, groupWebmentions} from '../src/core.js';
 import {renderGroups, renderWebmentions} from '../src/render.js';
 import {createFakeDocument, FakeNode} from './fake-dom.js';
 
@@ -42,6 +42,34 @@ describe('renderGroups', () => {
     assert.equal(list.children.length, 1);
     assert.equal(container.hidden, false);
     assert.equal(container.getAttribute('aria-hidden'), 'false');
+  });
+
+  // The DOM renderer used to leave the thread avatar out entirely: its default
+  // class name was empty, so the two renderers disagreed on the markup.
+  it('gives every thread mention an avatar', () => {
+    const {doc, container, facepile, list} = setup();
+
+    renderGroups(groupWebmentions(feed), {container, facepile, list, document: doc});
+
+    const [avatar] = list.children[0].children;
+
+    assert.equal(avatar.tagName, 'SPAN');
+    assert.equal(avatar.className, 'webmentions__photo is-initial');
+    assert.equal(avatar.textContent, 'D');
+    assert.equal(avatar.style['--webmention-avatar-hue'], String(getMentionAuthor(feed[3]).hue));
+  });
+
+  it('uses the photo when the author has one', () => {
+    const {doc, container, facepile, list} = setup();
+    const withPhoto = {...feed[3], author: {...feed[3].author, photo: 'https://d/p.png'}};
+
+    renderGroups(groupWebmentions([withPhoto]), {container, facepile, list, document: doc});
+
+    const [avatar] = list.children[0].children;
+
+    assert.equal(avatar.tagName, 'IMG');
+    assert.equal(avatar.className, 'webmentions__photo');
+    assert.equal(avatar.src, 'https://d/p.png');
   });
 
   it('renders one group per property in grouped mode, with counts', () => {

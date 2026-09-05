@@ -47,6 +47,47 @@ export function cleanText(value) {
 }
 
 /**
+ * The author as a renderer needs it: never an empty name, never an undefined
+ * photo. An h-card without `photo` is common — a mention from a plain blog, or
+ * from your own site — so `initial` is always there to fall back on and every
+ * mention can carry an avatar-shaped element.
+ */
+export function getMentionAuthor(mention) {
+  const author = mention?.author || {};
+  const source = mention?.url || mention?.['wm-source'] || '';
+  let host = '';
+
+  try {
+    host = new URL(source).hostname.replace(/^www\./, '');
+  } catch {
+    host = '';
+  }
+
+  const name = cleanText(author.name) || host || 'Someone';
+
+  return {
+    name,
+    url: author.url || source,
+    photo: author.photo || '',
+    initial: (name.charAt(0) || '?').toUpperCase(),
+    // A stable hue per author, so a wall of initials reads as distinct people
+    // rather than as one repeated placeholder. Only useful to a stylesheet, so
+    // it travels as a custom property rather than as an inline colour.
+    hue: getAuthorHue(name),
+  };
+}
+
+function getAuthorHue(name) {
+  let hash = 0;
+
+  for (let index = 0; index < name.length; index += 1) {
+    hash = (hash * 31 + name.charCodeAt(index)) % 360;
+  }
+
+  return hash;
+}
+
+/**
  * webmention.io and Bridgy mangle emoji into runs of "?" (and sometimes U+FFFD)
  * when extracting plain text from a toot or skeet. The emoji is unrecoverable,
  * so drop the debris instead of rendering it.

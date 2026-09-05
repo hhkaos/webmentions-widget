@@ -2,6 +2,32 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.6.0
+
+### Fixed
+
+- A mention whose author has no `photo` rendered no avatar at all in the thread
+  list, so those rows started 40px to the left of every other row and read as a
+  broken image rather than as a person. Both renderers now always emit an
+  avatar: the photo when there is one, otherwise a `<span>` with the author's
+  initial. `<Face>` already did this; `<Thread>` did not.
+- The DOM renderer never rendered a thread avatar under any circumstance — its
+  default `threadPhoto` class name was the empty string, which `createThreadItem`
+  read as "no avatar wanted". Its default is now `webmentions__photo`, matching
+  the facepile.
+
+### Added
+
+- `getMentionAuthor(mention)` — `{name, url, photo, initial, hue}`, shared by
+  both renderers. `name` falls back to the source host, so the React renderer
+  gains the host fallback the DOM one already had. `hue` is a stable 0–359
+  derived from the name, exposed on the fallback avatar as
+  `--webmention-avatar-hue` so a stylesheet can tint initials per author without
+  the package deciding on a colour.
+- `facepileInitial` and `threadInitial` class-name options, for styling the
+  fallback avatar apart from the photo. Both default to the photo class plus
+  `is-initial`.
+
 ## 0.5.4
 
 ### Changed

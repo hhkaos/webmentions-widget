@@ -12,6 +12,7 @@ import {
   fetchWebmentions,
   filterMentionsByTargets,
   formatMentionDate,
+  getMentionAuthor,
   getMentionContent,
   getMentionSourceUrl,
   getMentionType,
@@ -147,8 +148,36 @@ function renderLabel(label, keyPrefix) {
   ));
 }
 
+/**
+ * Every mention gets an avatar-shaped element, photo or not: a row that
+ * sometimes starts with a 40px image and sometimes with nothing has two
+ * different layouts, and the one without reads as a rendering failure.
+ */
+function Avatar({author, className, fallbackClassName, size}) {
+  if (author.photo) {
+    return h('img', {
+      className,
+      src: author.photo,
+      alt: '',
+      loading: 'lazy',
+      width: size,
+      height: size,
+    });
+  }
+
+  return h(
+    'span',
+    {
+      className: fallbackClassName,
+      'aria-hidden': 'true',
+      style: {'--webmention-avatar-hue': author.hue},
+    },
+    author.initial,
+  );
+}
+
 function Face({mention, classNames}) {
-  const author = mention.author || {};
+  const author = getMentionAuthor(mention);
   const sourceUrl = mention.url || mention['wm-source'] || author.url;
 
   return h(
@@ -161,24 +190,20 @@ function Face({mention, classNames}) {
         href: sourceUrl,
         rel: 'nofollow noopener',
         target: '_blank',
-        title: `${author.name || 'Someone'} — ${getMentionType(mention)}`,
+        title: `${author.name} — ${getMentionType(mention)}`,
       },
-      author.photo
-        ? h('img', {
-          className: classNames.facepilePhoto,
-          src: author.photo,
-          alt: '',
-          loading: 'lazy',
-          width: 32,
-          height: 32,
-        })
-        : h('span', {'aria-hidden': 'true'}, (author.name || '?').slice(0, 1).toUpperCase()),
+      h(Avatar, {
+        author,
+        className: classNames.facepilePhoto,
+        fallbackClassName: classNames.facepileInitial,
+        size: 32,
+      }),
     ),
   );
 }
 
 function Thread({mention, classNames, labels, locale, maxLength}) {
-  const author = mention.author || {};
+  const author = getMentionAuthor(mention);
   const published = mention.published || mention['wm-received'];
   const formattedDate = formatMentionDate(published, locale);
   const content = useMemo(
@@ -190,16 +215,12 @@ function Thread({mention, classNames, labels, locale, maxLength}) {
   return h(
     'li',
     {className: classNames.threadItem},
-    author.photo
-      ? h('img', {
-        className: classNames.threadPhoto,
-        src: author.photo,
-        alt: '',
-        loading: 'lazy',
-        width: 40,
-        height: 40,
-      })
-      : null,
+    h(Avatar, {
+      author,
+      className: classNames.threadPhoto,
+      fallbackClassName: classNames.threadInitial,
+      size: 40,
+    }),
     h(
       'div',
       {className: classNames.threadBody},
@@ -214,7 +235,7 @@ function Thread({mention, classNames, labels, locale, maxLength}) {
             rel: 'nofollow noopener',
             target: '_blank',
           },
-          h('span', {className: 'p-name'}, author.name || mention.url),
+          h('span', {className: 'p-name'}, author.name),
         ),
         ' ',
         h('span', null, getMentionType(mention, labels)),
@@ -280,9 +301,11 @@ const REACT_CLASS_NAMES = {
   facepileItem: 'webmention-facepile-item',
   facepileLink: 'webmention-facepile-link',
   facepilePhoto: 'webmention-facepile-photo',
+  facepileInitial: 'webmention-facepile-photo is-initial',
   threadList: 'webmentions-list',
   threadItem: 'h-cite webmention',
   threadPhoto: 'webmention-photo',
+  threadInitial: 'webmention-photo is-initial',
   threadBody: 'webmention-body',
   threadMeta: 'webmention-meta',
   threadAuthor: 'p-author h-card u-url',

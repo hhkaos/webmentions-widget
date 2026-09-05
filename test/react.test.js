@@ -51,7 +51,21 @@ describe('<Webmentions>', () => {
   it('uses the initial character when an author has no photo', () => {
     const html = render();
 
-    assert.match(html, /<span aria-hidden="true">B<\/span>/);
+    assert.match(html, /<span class="webmention-facepile-photo is-initial" aria-hidden="true"[^>]*>B<\/span>/);
+  });
+
+  // A thread row without an avatar has a different layout from one with it, and
+  // an h-card with no `photo` is common enough that the gap would be the norm.
+  it('gives a thread mention an avatar even when its author has no photo', () => {
+    assert.match(render(), /<span class="webmention-photo is-initial" aria-hidden="true"[^>]*>C<\/span>/);
+  });
+
+  it('carries a per-author hue on the fallback avatar', () => {
+    const html = render();
+    const hues = [...html.matchAll(/--webmention-avatar-hue:(\d+)/g)].map(([, hue]) => hue);
+
+    assert.equal(hues.length, 2);
+    assert.notEqual(hues[0], hues[1]);
   });
 });
 

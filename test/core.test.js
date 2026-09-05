@@ -7,6 +7,7 @@ import {
   fetchWebmentions,
   filterMentionsByTargets,
   getCanonicalTargets,
+  getMentionAuthor,
   getMentionContent,
   getMentionSourceUrl,
   getMentionType,
@@ -93,6 +94,40 @@ describe('stripMojibake', () => {
     assert.equal(stripMojibake('Great post ???? really'), 'Great post really');
     assert.equal(stripMojibake('Nice ��� one'), 'Nice one');
     assert.equal(stripMojibake('Wait ???!'), 'Wait!');
+  });
+});
+
+describe('getMentionAuthor', () => {
+  it('always yields a name and an initial to render', () => {
+    const author = getMentionAuthor({
+      'wm-source': 'https://www.example.com/posts/1',
+      author: {name: '', photo: ''},
+    });
+
+    assert.equal(author.name, 'example.com');
+    assert.equal(author.initial, 'E');
+    assert.equal(author.photo, '');
+    assert.equal(author.url, 'https://www.example.com/posts/1');
+  });
+
+  it('keeps the hue stable per name and spreads it across names', () => {
+    const one = getMentionAuthor({author: {name: 'Ana'}});
+    const same = getMentionAuthor({author: {name: 'Ana'}, url: 'https://elsewhere'});
+    const other = getMentionAuthor({author: {name: 'Bea'}});
+
+    assert.equal(one.hue, same.hue);
+    assert.notEqual(one.hue, other.hue);
+    assert.ok(one.hue >= 0 && one.hue < 360);
+  });
+
+  it('survives a mention with no author and no source', () => {
+    assert.deepEqual(getMentionAuthor({}), {
+      name: 'Someone',
+      url: '',
+      photo: '',
+      initial: 'S',
+      hue: getMentionAuthor({}).hue,
+    });
   });
 });
 

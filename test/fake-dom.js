@@ -11,7 +11,13 @@ class FakeNode {
     this.attributes = {};
     this.className = '';
     this.hidden = false;
-    this.style = {};
+    // A CSSStyleDeclaration stand-in: property access for `style.cursor`, plus
+    // the setter `render.js` uses for custom properties.
+    this.style = {
+      setProperty(name, value) {
+        this[name] = String(value);
+      },
+    };
     this.listeners = {};
     this._text = null;
   }

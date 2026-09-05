@@ -197,6 +197,12 @@ Finds the anchor in the source page that points back at you and quotes the
 sentence around it, rather than excerpting from the top of the post. Falls back to
 `content.text`. Pass `parseHTML` to run outside a browser.
 
+### `getMentionAuthor(mention)`
+
+Returns `{name, url, photo, initial, hue}`. `name` falls back to the source host,
+and `initial`/`hue` are there so a mention whose h-card has no `photo` — a plain
+blog, or your own site — still renders an avatar instead of a gap.
+
 ### `getMentionSourceUrl(mention, content)`
 
 Appends a `#:~:text=` fragment so the source link lands on the quoted sentence.
@@ -208,6 +214,35 @@ can hydrate from a build-time snapshot without touching the network.
 
 Every remote string is written with `textContent`. Nothing in this package ever
 assigns remote HTML.
+
+## Avatars
+
+Both renderers always emit an avatar element per mention. With `author.photo`
+it is an `<img>` carrying the photo class (`webmention-photo` in React,
+`webmentions__photo` in the DOM renderer); without one it is a `<span>` holding
+the author's initial, carrying that same class plus `is-initial` and a
+`--webmention-avatar-hue` custom property (0–359, stable per author name).
+
+The package ships no CSS. Style the fallback yourself — the hue is offered, not
+imposed:
+
+```css
+.webmention-photo {
+  border-radius: 50%;
+  flex: 0 0 40px;
+  height: 40px;
+  width: 40px;
+}
+
+.webmention-photo.is-initial {
+  align-items: center;
+  background: hsl(var(--webmention-avatar-hue, 220) 45% 92%);
+  color: hsl(var(--webmention-avatar-hue, 220) 45% 30%);
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+}
+```
 
 ## Notes on webmention.io quirks
 

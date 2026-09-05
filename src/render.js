@@ -10,6 +10,7 @@ import {
   describeTimestamp,
   fetchWebmentions,
   formatMentionDate,
+  getMentionAuthor,
   getMentionContent,
   getMentionSourceUrl,
   getMentionType,
@@ -26,6 +27,7 @@ export const DEFAULT_CLASS_NAMES = {
   facepileItem: 'webmentions__facepile-item',
   facepileLink: 'webmentions__facepile-link',
   facepilePhoto: 'webmentions__facepile-photo',
+  facepileInitial: 'webmentions__facepile-photo is-initial',
   threadList: 'webmentions__list',
   threadItem: 'webmentions__item h-cite',
   threadBody: 'webmentions__body',
@@ -33,7 +35,8 @@ export const DEFAULT_CLASS_NAMES = {
   threadAuthor: 'webmentions__author p-author h-card u-url',
   threadContent: 'webmentions__content p-content',
   threadSource: 'webmentions__source u-url',
-  threadPhoto: '',
+  threadPhoto: 'webmentions__photo',
+  threadInitial: 'webmentions__photo is-initial',
   updated: 'webmentions__updated',
 };
 
@@ -78,26 +81,14 @@ function resolveElement(value, root, doc) {
   return value;
 }
 
-function authorOf(mention) {
-  const author = mention.author || {};
-  const source = mention.url || mention['wm-source'] || '';
-  let host = '';
-
-  try {
-    host = new URL(source).hostname.replace(/^www\./, '');
-  } catch {
-    host = '';
-  }
-
-  return {
-    name: String(author.name || '').trim() || host || 'Someone',
-    url: author.url || source,
-    photo: author.photo || '',
-  };
-}
-
-function createAvatar(author, className, doc, size) {
+/**
+ * Every mention gets an avatar-shaped element, photo or not: a row that
+ * sometimes starts with an image and sometimes with nothing has two different
+ * layouts, and the one without reads as a rendering failure.
+ */
+function createAvatar(author, classNames, doc, size) {
   let element;
+  let className;
 
   if (author.photo) {
     element = doc.createElement('img');
@@ -106,10 +97,13 @@ function createAvatar(author, className, doc, size) {
     element.loading = 'lazy';
     element.width = size;
     element.height = size;
+    className = classNames.photo;
   } else {
     element = doc.createElement('span');
     element.setAttribute('aria-hidden', 'true');
-    element.textContent = (author.name.charAt(0) || '?').toUpperCase();
+    element.textContent = author.initial;
+    element.style.setProperty('--webmention-avatar-hue', author.hue);
+    className = classNames.initial ?? classNames.photo;
   }
 
   if (className) {
@@ -120,7 +114,7 @@ function createAvatar(author, className, doc, size) {
 }
 
 function createFace(mention, classNames, doc) {
-  const author = authorOf(mention);
+  const author = getMentionAuthor(mention);
   const item = doc.createElement('li');
   item.className = classNames.facepileItem;
 
@@ -130,7 +124,12 @@ function createFace(mention, classNames, doc) {
   link.rel = 'nofollow noopener';
   link.target = '_blank';
   link.title = `${author.name} — ${getMentionType(mention)}`;
-  link.appendChild(createAvatar(author, classNames.facepilePhoto, doc, 32));
+  link.appendChild(createAvatar(
+    author,
+    {photo: classNames.facepilePhoto, initial: classNames.facepileInitial},
+    doc,
+    32,
+  ));
 
   item.appendChild(link);
 
@@ -171,7 +170,7 @@ function createFacepileGroup(property, mentions, {classNames, labels, doc}) {
 }
 
 function createThreadItem(mention, {classNames, labels, locale, maxLength, doc}) {
-  const author = authorOf(mention);
+  const author = getMentionAuthor(mention);
   const published = mention.published || mention['wm-received'];
   const formattedDate = formatMentionDate(published, locale);
   const content = getMentionContent(mention, {maxLength});
@@ -180,9 +179,12 @@ function createThreadItem(mention, {classNames, labels, locale, maxLength, doc})
   const item = doc.createElement('li');
   item.className = classNames.threadItem;
 
-  if (classNames.threadPhoto) {
-    item.appendChild(createAvatar(author, classNames.threadPhoto, doc, 40));
-  }
+  item.appendChild(createAvatar(
+    author,
+    {photo: classNames.threadPhoto, initial: classNames.threadInitial},
+    doc,
+    40,
+  ));
 
   const body = doc.createElement('div');
   body.className = classNames.threadBody;
