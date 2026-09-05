@@ -2,6 +2,18 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.3.0
+
+### Added
+
+- Optional freshness line: pass an `updated` label and the widget dates the
+  snapshot it is showing. Rendered only when the mentions came from a snapshot
+  and there is at least one — on a live fetch the data is current and dating it
+  would mislead. `renderUpdated` overrides the wording; the vanilla renderer
+  takes `updatedAt` plus an `updated` element.
+- `useWebmentions` now reports `source` (`'snapshot' | 'network'`) and
+  `generatedAt`, so a host can tell where what it is rendering came from.
+
 ## 0.2.0
 
 ### Added

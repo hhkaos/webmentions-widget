@@ -33,6 +33,7 @@ export const DEFAULT_CLASS_NAMES = {
   threadContent: 'webmentions__content p-content',
   threadSource: 'webmentions__source u-url',
   threadPhoto: '',
+  updated: 'webmentions__updated',
 };
 
 const FACEPILE_META = {
@@ -253,6 +254,10 @@ export function renderGroups(groups, {
   classNames: classNameOverrides = {},
   facepileMode = 'flat',
   maxLength,
+  // Timestamp of the snapshot these groups came from, if any. Rendering it
+  // tells a reader how stale the list may be; on a live fetch, leave it unset.
+  updatedAt = null,
+  updated,
   document: doc = globalThis.document,
 } = {}) {
   const classNames = {...DEFAULT_CLASS_NAMES, ...classNameOverrides};
@@ -285,6 +290,28 @@ export function renderGroups(groups, {
       maxLength,
       doc,
     })));
+  }
+
+  const updatedElement = resolveElement(updated, containerElement, doc)
+    || containerElement?.querySelector(`.${classNames.updated.split(' ')[0]}`);
+
+  if (updatedElement) {
+    const show = Boolean(updatedAt) && labels.updated != null
+      && (groups.interactions.length > 0 || groups.threads.length > 0);
+
+    updatedElement.replaceChildren();
+
+    if (show) {
+      appendLabel(updatedElement, labels.updated, doc);
+      updatedElement.appendChild(doc.createTextNode(' '));
+
+      const time = doc.createElement('time');
+      time.dateTime = updatedAt;
+      time.textContent = formatMentionDate(updatedAt, locale);
+      updatedElement.appendChild(time);
+    }
+
+    updatedElement.hidden = !show;
   }
 
   if (containerElement) {

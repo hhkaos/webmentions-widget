@@ -107,14 +107,43 @@ export function useWebmentions(targets, options = {}) {
   // A live result wins once it lands; until then the snapshot renders. A failed
   // revalidation never blanks a section the snapshot could still fill.
   if (fetched.groups) {
-    return fetched;
+    return {...fetched, source: 'network', generatedAt: null};
   }
 
   if (seededGroups) {
-    return {status: 'success', groups: seededGroups, error: fetched.error};
+    return {
+      status: 'success',
+      groups: seededGroups,
+      error: fetched.error,
+      source: 'snapshot',
+      // Only meaningful for a snapshot: how stale the data on screen may be.
+      generatedAt: initialMentions ? null : snapshot?.generatedAt ?? null,
+    };
   }
 
-  return {status: fetched.status, groups: EMPTY_GROUPS, error: fetched.error};
+  return {
+    status: fetched.status,
+    groups: EMPTY_GROUPS,
+    error: fetched.error,
+    source: null,
+    generatedAt: null,
+  };
+}
+
+/**
+ * A label is a plain string, or a `{en, es}` map for sites that ship both
+ * languages and toggle them with CSS.
+ */
+function renderLabel(label, keyPrefix) {
+  if (label == null || typeof label === 'string') {
+    return label ?? null;
+  }
+
+  return Object.entries(label).map(([lang, text]) => h(
+    'span',
+    {key: `${keyPrefix}-${lang}`, className: `i18n-${lang}`, lang},
+    text,
+  ));
 }
 
 function Face({mention, classNames}) {
@@ -213,6 +242,7 @@ const REACT_CLASS_NAMES = {
   threadAuthor: 'p-author h-card u-url',
   threadContent: 'e-content webmention-content',
   threadSource: 'u-url webmention-source',
+  updated: 'webmentions-updated',
 };
 
 /**
@@ -231,10 +261,11 @@ export function Webmentions({
   innerClassName = null,
   renderEmpty = null,
   renderError = null,
+  renderUpdated = null,
   ...options
 }) {
   const classNames = {...REACT_CLASS_NAMES, ...classNameOverrides};
-  const {status, groups, error} = useWebmentions(targets, options);
+  const {status, groups, error, source, generatedAt} = useWebmentions(targets, options);
 
   if (status === 'error') {
     return renderError ? renderError(error) : null;
@@ -273,6 +304,25 @@ export function Webmentions({
           locale,
           maxLength,
         })),
+      )
+      : null,
+    // Only when rendering from a snapshot: on a live fetch the mentions are
+    // current and dating them would be misleading.
+    source === 'snapshot' && generatedAt && (labels.updated || renderUpdated)
+      ? h(
+        'p',
+        {key: 'updated', className: classNames.updated},
+        renderUpdated
+          ? renderUpdated(generatedAt, formatMentionDate(generatedAt, locale))
+          : [
+            renderLabel(labels.updated, 'updated'),
+            ' ',
+            h(
+              'time',
+              {key: 'updated-time', dateTime: generatedAt},
+              formatMentionDate(generatedAt, locale),
+            ),
+          ],
       )
       : null,
   ];

@@ -89,3 +89,62 @@ describe('<Webmentions> with a build-time snapshot', () => {
     assert.equal(html, '');
   });
 });
+
+describe('snapshot freshness line', () => {
+  const snapshot = {
+    generatedAt: '2026-09-05T06:00:00Z',
+    mentions: [
+      {'wm-id': 7, 'wm-target': 'https://example.com/post', 'wm-property': 'like-of', 'wm-source': 'https://s/7', author: {name: 'Eve'}},
+    ],
+  };
+  const targets = ['https://example.com/post'];
+
+  it('dates the snapshot when a label is supplied', () => {
+    const html = renderToStaticMarkup(createElement(Webmentions, {
+      targets,
+      snapshot,
+      locale: 'en',
+      labels: {updated: 'Updated'},
+    }));
+
+    // React's static renderer emits `dateTime`; HTML attribute names are
+    // case-insensitive, so the browser reads it as `datetime` either way.
+    assert.match(html, /class="webmentions-updated">Updated <time dateTime="2026-09-05T06:00:00Z">Sep 5, 2026<\/time>/i);
+  });
+
+  it('stays quiet without a label, and on a live fetch', () => {
+    assert.doesNotMatch(
+      renderToStaticMarkup(createElement(Webmentions, {targets, snapshot})),
+      /webmentions-updated/,
+    );
+
+    // initialMentions stands in for freshly fetched data: no snapshot date.
+    assert.doesNotMatch(
+      renderToStaticMarkup(createElement(Webmentions, {
+        targets,
+        initialMentions: snapshot.mentions,
+        labels: {updated: 'Updated'},
+      })),
+      /webmentions-updated/,
+    );
+  });
+
+  it('renders bilingual labels and honours renderUpdated', () => {
+    const bilingual = renderToStaticMarkup(createElement(Webmentions, {
+      targets,
+      snapshot,
+      labels: {updated: {en: 'Updated', es: 'Actualizado'}},
+    }));
+
+    assert.match(bilingual, /<span class="i18n-en" lang="en">Updated<\/span>/);
+    assert.match(bilingual, /<span class="i18n-es" lang="es">Actualizado<\/span>/);
+
+    const custom = renderToStaticMarkup(createElement(Webmentions, {
+      targets,
+      snapshot,
+      renderUpdated: (iso, formatted) => `refreshed ${formatted}`,
+    }));
+
+    assert.match(custom, /refreshed/);
+  });
+});

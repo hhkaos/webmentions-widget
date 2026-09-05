@@ -134,6 +134,27 @@ Two things this buys beyond politeness: the section survives a webmention.io
 outage, and the committed JSON is a durable copy of your mentions if the
 service ever disappears.
 
+### Saying how fresh it is
+
+A snapshot is by definition a little behind. Pass an `updated` label and the
+widget dates what it is showing:
+
+```jsx
+<Webmentions
+  targets={targets}
+  snapshot={snapshot}
+  locale="es"
+  labels={{updated: {en: 'Updated', es: 'Actualizado'}}}
+/>
+```
+
+It renders only when the mentions came from a snapshot and there is at least one
+to qualify — on a live fetch the data is current and dating it would mislead.
+`renderUpdated={(iso, formatted) => …}` takes over the wording entirely.
+
+The widget owns this because it is the only layer that knows which source the
+mentions came from; the host owns the copy.
+
 ## API
 
 ### `fetchWebmentions(options)`
