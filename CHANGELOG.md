@@ -2,6 +2,16 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.5.1
+
+### Fixed
+
+- `webmentions-snapshot` retries for about two and a half minutes (8 attempts,
+  capped exponential backoff with jitter) instead of half a minute. Measured
+  against the live API on 2026-09-05, roughly two requests in three returned
+  502; four quick attempts lost that coin flip often enough to skip a whole
+  day's refresh.
+
 ## 0.5.0
 
 ### Added

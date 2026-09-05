@@ -23,8 +23,9 @@ import {getSnapshotMentions, mergeSnapshot, parseWebmentionJson} from '../src/co
 const DEFAULT_API = 'https://webmention.io/api/mentions.jf2';
 const PER_PAGE = 100;
 const PAGE_DELAY_MS = 500;
-const RETRIES = 4;
-const RETRY_DELAY_MS = 2000;
+const RETRIES = 8;
+const RETRY_DELAY_MS = 3000;
+const MAX_RETRY_DELAY_MS = 30000;
 
 function parseArgs(argv) {
   const args = {};
@@ -61,7 +62,13 @@ async function fetchPage(url) {
 
   for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
     if (attempt > 0) {
-      await wait(RETRY_DELAY_MS * 2 ** (attempt - 1));
+      // Capped exponential backoff with jitter. webmention.io has spent today
+      // failing roughly two requests in three, so a job that gives up after
+      // half a minute loses the coin flip often enough to skip whole days; a
+      // daily job can afford to be patient for a couple of minutes instead.
+      const backoff = Math.min(RETRY_DELAY_MS * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS);
+
+      await wait(backoff + Math.random() * 1000);
     }
 
     try {
