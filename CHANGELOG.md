@@ -2,6 +2,17 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.5.3
+
+### Fixed
+
+- `webmentions-snapshot` did nothing at all when run as an installed command.
+  0.5.2 guarded `main()` by comparing `import.meta.url` to `process.argv[1]`,
+  but npm installs a bin as a symlink in `node_modules/.bin`, so argv[1] is the
+  link and the comparison never matched: the command exited 0 in a third of a
+  second having printed nothing. Both sides are now compared through realpath,
+  with a test that invokes the CLI through a symlink.
+
 ## 0.5.2
 
 ### Fixed

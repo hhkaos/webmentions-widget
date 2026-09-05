@@ -15,9 +15,10 @@
  * WEBMENTION_IO_TOKEN, or --token. Domain queries require it.
  */
 
+import {realpathSync} from 'node:fs';
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath} from 'node:url';
 
 import {getSnapshotMentions, mergeSnapshot, parseWebmentionJson} from '../src/core.js';
 
@@ -182,8 +183,27 @@ async function main() {
   console.log(`Snapshot updated: ${before} → ${snapshot.count} mentions (lastId ${snapshot.lastId}).`);
 }
 
-// Only run when invoked as a command, so the helpers above stay testable.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/**
+ * True when this file is the process entry point.
+ *
+ * Compared through realpath on both sides: npm installs a bin as a symlink in
+ * node_modules/.bin, so argv[1] is that link rather than this file, and a
+ * naive URL comparison makes the command a silent no-op.
+ */
+function isEntryPoint() {
+  if (!process.argv[1]) {
+    return false;
+  }
+
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+// Guarded so the helpers above stay importable by tests.
+if (isEntryPoint()) {
   main().catch((error) => {
     console.error(error);
     process.exit(1);
