@@ -1,0 +1,53 @@
+{
+  "name": "@hhkaos/webmentions-widget",
+  "version": "0.1.0",
+  "description": "Framework-agnostic, dependency-free widget to fetch and render webmention.io mentions for the current page.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Raul Jimenez Ortega",
+  "homepage": "https://github.com/hhkaos/webmentions-widget#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhkaos/webmentions-widget.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hhkaos/webmentions-widget/issues"
+  },
+  "keywords": [
+    "webmention",
+    "webmention.io",
+    "indieweb",
+    "microformats",
+    "widget"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.js",
+    "./core": "./src/core.js",
+    "./render": "./src/render.js",
+    "./react": "./src/react.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
