@@ -2,6 +2,26 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.2.0
+
+### Added
+
+- Build-time snapshots. `webmentions-snapshot` (new bin) queries webmention.io
+  once for a whole domain, incrementally via `since_id`, and writes a JSON file
+  to commit. Pass it to `<Webmentions snapshot={...}>` and the component renders
+  with no network request at all — a page view stops costing webmention.io a
+  request, the section survives an outage, and the committed file is a durable
+  copy of the mentions.
+- `filterMentionsByTargets`, `getSnapshotMentions` and `mergeSnapshot` in core.
+- `revalidate` on the React hook, to opt back into a live fetch on top of a
+  snapshot. A failed revalidation never blanks a section the snapshot could fill.
+
+### Fixed
+
+- `useWebmentions` seeded its state in a `useState` initializer, which only runs
+  once — on a client-side route change the targets changed but the mentions did
+  not. Groups are now derived from the current targets.
+
 ## 0.1.1
 
 ### Added

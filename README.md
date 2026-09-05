@@ -101,6 +101,39 @@ export default function SiteWebmentions() {
 without the markup. It returns `{status, groups, error}` where `status` is
 `idle | loading | success | error`.
 
+## Build-time snapshot (recommended)
+
+By default the widget fetches in the browser, which costs webmention.io one
+request per visitor per page view — and leaves the section empty whenever their
+API is down. A snapshot inverts that: fetch once per day in CI, commit the
+result, and serve it as data.
+
+```sh
+npx webmentions-snapshot --domain example.com --out src/data/webmentions.json
+```
+
+Domain-wide queries need an API token (webmention.io → Settings → API Key),
+read from `WEBMENTION_IO_TOKEN`. The command fetches only what is new since the
+last run (`since_id`), waits between pages, and leaves the existing file
+untouched if the API errors — a bad fetch never replaces good data.
+
+Then hand the snapshot to the component:
+
+```jsx
+import snapshot from '@site/src/data/webmentions.json';
+
+<Webmentions targets={targets} snapshot={snapshot} />
+```
+
+The component narrows the whole-site snapshot to the current page locally and
+renders with **no network request at all**. Pass `revalidate` to opt back into
+a live fetch on top (the snapshot renders first either way, and a failed
+revalidation never blanks a section the snapshot could fill).
+
+Two things this buys beyond politeness: the section survives a webmention.io
+outage, and the committed JSON is a durable copy of your mentions if the
+service ever disappears.
+
 ## API
 
 ### `fetchWebmentions(options)`

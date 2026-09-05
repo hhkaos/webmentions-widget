@@ -30,6 +30,7 @@
   },
   "files": [
     "src",
+    "bin",
     "README.md",
     "LICENSE"
   ],
@@ -53,5 +54,8 @@
   "devDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
+  },
+  "bin": {
+    "webmentions-snapshot": "./bin/snapshot.js"
   }
 }

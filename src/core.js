@@ -391,6 +391,76 @@ export function groupWebmentions(mentions, {facepileProperties = FACEPILE_PROPER
   };
 }
 
+/**
+ * Match a mention's stored target against the variants we query for a page.
+ * Comparison ignores the trailing slash and the fragment, so a snapshot taken
+ * against one variant still matches a page queried under another.
+ */
+function targetMatches(mention, normalizedTargets) {
+  const target = normalizeUrl(mention?.['wm-target']);
+
+  return Boolean(target) && normalizedTargets.has(target);
+}
+
+/**
+ * Narrow a whole-domain snapshot down to one page.
+ *
+ * A build-time snapshot is fetched once for the entire site (webmention.io's
+ * `domain=` query), so each page has to pick out its own mentions locally
+ * rather than asking the API again.
+ */
+export function filterMentionsByTargets(mentions, targets = []) {
+  const normalizedTargets = new Set(
+    targets.map((target) => normalizeUrl(target)).filter(Boolean),
+  );
+
+  if (!normalizedTargets.size) {
+    return [];
+  }
+
+  return (mentions || []).filter((mention) => targetMatches(mention, normalizedTargets));
+}
+
+/**
+ * Read a snapshot in either accepted shape: a bare array of entries, or the
+ * `{mentions, generatedAt, lastId}` envelope that the refresh job writes.
+ */
+export function getSnapshotMentions(snapshot) {
+  if (Array.isArray(snapshot)) {
+    return snapshot;
+  }
+
+  return snapshot?.mentions || snapshot?.children || [];
+}
+
+/**
+ * Merge a fresh page of mentions into a snapshot, newest first, deduped by
+ * `wm-id`. Used by the refresh job so an incremental `since_id` fetch does not
+ * have to re-download everything.
+ */
+export function mergeSnapshot(existing, incoming) {
+  const byId = new Map();
+
+  [...getSnapshotMentions(existing), ...(incoming || [])].forEach((mention) => {
+    const key = mention?.['wm-id'] ?? mention?.['wm-source'];
+
+    if (key != null) {
+      byId.set(key, mention);
+    }
+  });
+
+  const mentions = [...byId.values()].sort((a, b) => (
+    (b['wm-id'] ?? 0) - (a['wm-id'] ?? 0)
+  ));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    lastId: mentions.reduce((max, mention) => Math.max(max, mention['wm-id'] ?? 0), 0) || null,
+    count: mentions.length,
+    mentions,
+  };
+}
+
 export class WebmentionFetchError extends Error {
   constructor(message, {status, attempts, cause} = {}) {
     super(message, {cause});

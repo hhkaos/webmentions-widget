@@ -54,3 +54,38 @@ describe('<Webmentions>', () => {
     assert.match(html, /<span aria-hidden="true">B<\/span>/);
   });
 });
+
+describe('<Webmentions> with a build-time snapshot', () => {
+  const snapshot = {
+    mentions: [
+      {'wm-id': 7, 'wm-target': 'https://example.com/post/', 'wm-property': 'like-of', 'wm-source': 'https://s/7', author: {name: 'Eve'}},
+      {'wm-id': 8, 'wm-target': 'https://example.com/elsewhere', 'wm-property': 'like-of', 'wm-source': 'https://s/8', author: {name: 'Mal'}},
+    ],
+  };
+
+  it('renders the page\'s own mentions without touching the network', () => {
+    let fetched = false;
+    const html = renderToStaticMarkup(createElement(Webmentions, {
+      targets: ['https://example.com/post'],
+      snapshot,
+      fetch: () => {
+        fetched = true;
+
+        throw new Error('should not be called');
+      },
+    }));
+
+    assert.match(html, /webmention-facepile-item/);
+    assert.equal(html.match(/webmention-facepile-item/g).length, 1, 'only this page\'s mention');
+    assert.equal(fetched, false);
+  });
+
+  it('renders nothing when the snapshot has nothing for this page', () => {
+    const html = renderToStaticMarkup(createElement(Webmentions, {
+      targets: ['https://example.com/untouched'],
+      snapshot,
+    }));
+
+    assert.equal(html, '');
+  });
+});

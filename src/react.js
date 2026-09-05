@@ -5,14 +5,16 @@
  * buildless — consumers import the source directly.
  */
 
-import {createElement as h, useEffect, useMemo, useRef, useState} from 'react';
+import {createElement as h, useEffect, useMemo, useState} from 'react';
 import {
   FACEPILE_PROPERTIES,
   fetchWebmentions,
+  filterMentionsByTargets,
   formatMentionDate,
   getMentionContent,
   getMentionSourceUrl,
   getMentionType,
+  getSnapshotMentions,
   groupWebmentions,
 } from './core.js';
 
@@ -39,25 +41,42 @@ export function useWebmentions(targets, options = {}) {
     retryDelayMs,
     fallbackToJson,
     initialMentions,
+    // A whole-site snapshot, narrowed to these targets locally.
+    snapshot,
+    // With mentions already in hand, skip the network by default: the point of
+    // a snapshot is that a page view costs webmention.io nothing.
+    revalidate,
   } = options;
-  const [state, setState] = useState(() => ({
-    status: initialMentions ? 'success' : 'idle',
-    groups: initialMentions ? groupWebmentions(initialMentions) : EMPTY_GROUPS,
-    error: null,
-  }));
   const targetsKey = targets.join('\n');
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+
+  // Derived, not stored: on a client-side route change the targets change, and
+  // state seeded once in a useState initializer would go stale.
+  const seededGroups = useMemo(() => {
+    if (initialMentions) {
+      return groupWebmentions(initialMentions);
+    }
+
+    if (!snapshot) {
+      return null;
+    }
+
+    return groupWebmentions(
+      filterMentionsByTargets(getSnapshotMentions(snapshot), targetsKey ? targetsKey.split('\n') : []),
+    );
+  }, [initialMentions, snapshot, targetsKey]);
+
+  const shouldFetch = (revalidate ?? !seededGroups) && Boolean(targetsKey);
+  const [fetched, setFetched] = useState({status: 'idle', groups: null, error: null});
 
   useEffect(() => {
-    if (!targetsKey) {
+    if (!shouldFetch) {
       return undefined;
     }
 
     const controller = new AbortController();
     let active = true;
 
-    setState((previous) => ({...previous, status: 'loading'}));
+    setFetched({status: 'loading', groups: null, error: null});
 
     fetchWebmentions({
       targets: targetsKey.split('\n'),
@@ -70,12 +89,12 @@ export function useWebmentions(targets, options = {}) {
     })
       .then((mentions) => {
         if (active) {
-          setState({status: 'success', groups: groupWebmentions(mentions), error: null});
+          setFetched({status: 'success', groups: groupWebmentions(mentions), error: null});
         }
       })
       .catch((error) => {
         if (active && error?.name !== 'AbortError') {
-          setState({status: 'error', groups: EMPTY_GROUPS, error});
+          setFetched({status: 'error', groups: null, error});
         }
       });
 
@@ -83,9 +102,19 @@ export function useWebmentions(targets, options = {}) {
       active = false;
       controller.abort();
     };
-  }, [targetsKey, apiUrl, perPage, retries, retryDelayMs, fallbackToJson]);
+  }, [targetsKey, shouldFetch, apiUrl, perPage, retries, retryDelayMs, fallbackToJson]);
 
-  return state;
+  // A live result wins once it lands; until then the snapshot renders. A failed
+  // revalidation never blanks a section the snapshot could still fill.
+  if (fetched.groups) {
+    return fetched;
+  }
+
+  if (seededGroups) {
+    return {status: 'success', groups: seededGroups, error: fetched.error};
+  }
+
+  return {status: fetched.status, groups: EMPTY_GROUPS, error: fetched.error};
 }
 
 function Face({mention, classNames}) {

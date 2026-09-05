@@ -5,11 +5,14 @@ import {
   WebmentionFetchError,
   excerptText,
   fetchWebmentions,
+  filterMentionsByTargets,
   getCanonicalTargets,
   getMentionContent,
   getMentionSourceUrl,
   getMentionType,
+  getSnapshotMentions,
   groupWebmentions,
+  mergeSnapshot,
   normalizeJsonFeed,
   normalizeProperty,
   stripMojibake,
@@ -378,5 +381,51 @@ describe('fetchWebmentions resilience', () => {
 
     assert.equal(requestUrl.match(/target%5B%5D=/g).length, 2);
     assert.deepEqual(await fetchWebmentions({targets: [], document: null}), []);
+  });
+});
+
+describe('snapshot helpers', () => {
+  const snapshot = {
+    generatedAt: '2026-09-05T00:00:00Z',
+    lastId: 3,
+    mentions: [
+      {'wm-id': 3, 'wm-target': 'https://www.example.com/post', 'wm-property': 'like-of', 'wm-source': 'https://s/3'},
+      {'wm-id': 2, 'wm-target': 'https://example.com/post/', 'wm-property': 'in-reply-to', 'wm-source': 'https://s/2'},
+      {'wm-id': 1, 'wm-target': 'https://www.example.com/other', 'wm-property': 'like-of', 'wm-source': 'https://s/1'},
+    ],
+  };
+
+  it('narrows a whole-domain snapshot to one page, ignoring trailing slashes', () => {
+    const mentions = filterMentionsByTargets(getSnapshotMentions(snapshot), [
+      'https://www.example.com/post',
+      'https://example.com/post',
+    ]);
+
+    assert.deepEqual(mentions.map((m) => m['wm-id']), [3, 2]);
+  });
+
+  it('returns nothing without targets, and reads a bare array snapshot', () => {
+    assert.deepEqual(filterMentionsByTargets(snapshot.mentions, []), []);
+    assert.equal(getSnapshotMentions(snapshot.mentions).length, 3);
+    assert.deepEqual(getSnapshotMentions(undefined), []);
+  });
+
+  it('merges incremental fetches, deduping by wm-id and tracking the high-water mark', () => {
+    const merged = mergeSnapshot(snapshot, [
+      {'wm-id': 4, 'wm-target': 'https://www.example.com/post', 'wm-source': 'https://s/4'},
+      {'wm-id': 3, 'wm-target': 'https://www.example.com/post', 'wm-source': 'https://s/3-updated'},
+    ]);
+
+    assert.equal(merged.count, 4);
+    assert.equal(merged.lastId, 4);
+    assert.deepEqual(merged.mentions.map((m) => m['wm-id']), [4, 3, 2, 1]);
+    assert.equal(merged.mentions[1]['wm-source'], 'https://s/3-updated', 'incoming wins on conflict');
+  });
+
+  it('builds a snapshot from nothing', () => {
+    const merged = mergeSnapshot(null, [{'wm-id': 9, 'wm-source': 'https://s/9'}]);
+
+    assert.equal(merged.count, 1);
+    assert.equal(merged.lastId, 9);
   });
 });
