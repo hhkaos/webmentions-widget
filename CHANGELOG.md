@@ -2,6 +2,15 @@
 
 All notable changes are documented here. Versions follow [semver](https://semver.org/).
 
+## 0.5.2
+
+### Fixed
+
+- `--full` as the last argument was parsed as `undefined`, so a full refresh
+  silently ran as an incremental one — the first real `--full` run reported
+  "No new mentions" instead of refetching. A flag is now boolean when nothing
+  follows it or the next token is another flag.
+
 ## 0.5.1
 
 ### Fixed

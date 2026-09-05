@@ -17,6 +17,7 @@
 
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 import {getSnapshotMentions, mergeSnapshot, parseWebmentionJson} from '../src/core.js';
 
@@ -27,7 +28,7 @@ const RETRIES = 8;
 const RETRY_DELAY_MS = 3000;
 const MAX_RETRY_DELAY_MS = 30000;
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const args = {};
 
   argv.forEach((arg, index) => {
@@ -36,7 +37,18 @@ function parseArgs(argv) {
     }
 
     const [flag, inline] = arg.slice(2).split('=');
-    args[flag] = inline ?? (argv[index + 1]?.startsWith('--') ? true : argv[index + 1]);
+
+    if (inline !== undefined) {
+      args[flag] = inline;
+      return;
+    }
+
+    const next = argv[index + 1];
+
+    // A flag is boolean when nothing follows it, or when what follows is
+    // another flag. `--full` as the last argument is the common case, and
+    // reading it as its (missing) value silently disabled it.
+    args[flag] = next === undefined || next.startsWith('--') ? true : next;
   });
 
   return args;
@@ -170,7 +182,10 @@ async function main() {
   console.log(`Snapshot updated: ${before} → ${snapshot.count} mentions (lastId ${snapshot.lastId}).`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Only run when invoked as a command, so the helpers above stay testable.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
