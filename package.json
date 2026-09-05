@@ -1,6 +1,6 @@
 {
   "name": "@hhkaos/webmentions-widget",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Framework-agnostic, dependency-free widget to fetch and render webmention.io mentions for the current page.",
   "type": "module",
   "license": "MIT",
