@@ -1,3 +1,4 @@
 node_modules/
 *.log
 .DS_Store
+hhkaos-webmentions-widget-*.tgz
